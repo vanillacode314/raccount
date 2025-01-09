@@ -1,0 +1,41 @@
+{
+  "name": "db",
+  "version": "1.0.0",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.mjs"
+    },
+    "./*": {
+      "types": "./dist/lib/*.d.ts",
+      "import": "./dist/lib/*.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint --fix src",
+    "format": "prettier --write src",
+    "studio": "drizzle-kit studio",
+    "push": "drizzle-kit push"
+  },
+  "author": "",
+  "description": "",
+  "devDependencies": {
+    "@dword-design/eslint-plugin-import-alias": "^5.1.1",
+    "@eslint/compat": "^1.2.4",
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.30.1",
+    "eslint": "^9.17.0",
+    "eslint-plugin-perfectionist": "^3.9.1",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.38.2",
+    "drizzle-zod": "^0.5.1",
+    "nanoid": "^5.0.9",
+    "zod": "^3.24.1"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "PORT=3002 nitro dev",
+    "build": "nitro build",
+    "prepare": "nitro prepare",
+    "preview": "node .output/server/index.mjs",
+    "format": "prettier --write server",
+    "lint": "eslint --fix server"
+  },
+  "devDependencies": {
+    "@dword-design/eslint-plugin-import-alias": "^5.1.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "eslint": "^9.17.0",
+    "eslint-plugin-perfectionist": "^4.6.0",
+    "globals": "^15.14.0",
+    "nitropack": "latest",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.19.0"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@t3-oss/env-core": "^0.11.1",
+    "bcryptjs": "^2.4.3",
+    "db": "workspace:*",
+    "drizzle-orm": "^0.38.2",
+    "h3": "^1.13.0",
+    "jsonwebtoken": "^9.0.2",
+    "nanoid": "^5.0.9",
+    "schema": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "overrides": {
+    "unimport": "3.13.4"
+  }
+}

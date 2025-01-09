@@ -1,0 +1,21 @@
+{
+  "name": "raccount",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev --filter api --filter app",
+    "db:studio": "cd packages/db && pnpm studio",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "test": "turbo test"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.3.3",
+    "typescript": "5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
+}
