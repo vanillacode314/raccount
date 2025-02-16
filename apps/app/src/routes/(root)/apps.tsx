@@ -109,7 +109,7 @@ function AuthorizedAppCard(props: {
 				</CardHeader>
 				<CardContent>
 					<ul>
-						<For each={props.authorizedApp.scope.flatMap((scope) => SCOPE_DEFINITIONS[scope])}>
+						<For each={props.authorizedApp.scopes.flatMap((scope) => SCOPE_DEFINITIONS[scope])}>
 							{(scope) => <li class="list-inside list-disc">{scope}</li>}
 						</For>
 					</ul>

@@ -19,10 +19,8 @@ import {
 } from '~/components/ui/card';
 import { TextField, TextFieldInput, TextFieldLabel } from '~/components/ui/text-field';
 import { Toggle } from '~/components/ui/toggle';
-import { decryptDataWithKey, deriveKey, getPasswordKey } from '~/utils/crypto';
 import { clientEnv } from '~/utils/env.client';
 import { apiFetch } from '~/utils/fetchers';
-import { localforage } from '~/utils/localforage';
 
 const validationSchema = z.object({
 	form: z.string().array()
@@ -42,25 +40,10 @@ export default function SignInPage() {
 				const form = event.target as HTMLFormElement;
 				const formData = new FormData(form);
 				try {
-					const result = await apiFetch.as_json<Omit<TUser, 'passwordHash'>>(
-						'/api/v1/public/auth/signin',
-						{
-							body: formData,
-							method: 'POST'
-						}
-					);
-					const { encryptedPrivateKey, publicKey, salt } = result;
-					if (!(encryptedPrivateKey === null || salt === null || publicKey === null)) {
-						const parsedSalt = new Uint8Array(atob(salt).split(',').map(Number));
-						const derivationKey = await getPasswordKey(formData.get('password') as string);
-						const privateKey = await deriveKey(derivationKey, parsedSalt, ['decrypt']);
-						const decryptedPrivateKey = await decryptDataWithKey(encryptedPrivateKey, privateKey);
-						await localforage.setMany({
-							privateKey: decryptedPrivateKey,
-							publicKey: atob(publicKey),
-							salt: parsedSalt
-						});
-					}
+					await apiFetch.as_json<Omit<TUser, 'passwordHash'>>('/api/v1/public/auth/signin', {
+						body: formData,
+						method: 'POST'
+					});
 					queryClient.invalidateQueries({ queryKey: ['user'] });
 				} catch (error) {
 					if (error instanceof FetchError) {

@@ -1,6 +1,8 @@
 import { apps } from 'db/schema';
 import { and, eq } from 'drizzle-orm';
 
+import { isAuthenticated } from '~/utils/auth';
+
 const bodySchema = z.object({
 	description: z.string().optional(),
 	homepageUrl: z.string().url().optional(),
@@ -11,11 +13,11 @@ const bodySchema = z.object({
 		.refine((uris) => new Set(uris).size === uris.length, { message: 'Uris must be unique' })
 		.optional()
 });
-const paramSchema = z.object({
+const paramsSchema = z.object({
 	id: z.string()
 });
 export default defineEventHandler(async (event) => {
-	const user = event.context.auth!.user;
+	const user = await isAuthenticated(event, { hasScopes: ['read:all', 'write:all'] });
 	const result = await readValidatedBody(event, bodySchema.safeParse);
 	if (!result.success) {
 		throw createError({
@@ -24,7 +26,7 @@ export default defineEventHandler(async (event) => {
 		});
 	}
 
-	const { id } = await getValidatedRouterParams(event, paramSchema.parse);
+	const { id } = await getValidatedRouterParams(event, paramsSchema.parse);
 	const data = result.data;
 
 	const [record] = await db

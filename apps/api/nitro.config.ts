@@ -4,5 +4,7 @@ export default defineNitroConfig({
 	imports: {
 		imports: [{ from: 'zod', name: 'z' }]
 	},
+	experimental: { openAPI: true },
+	openAPI: {},
 	srcDir: 'server'
 });

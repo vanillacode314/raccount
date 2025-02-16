@@ -11,11 +11,25 @@ import {
 } from '~/consts';
 import env from '~/utils/env';
 
+async function isAuthenticated(
+	event: H3Event,
+	options: Partial<{
+		hasScopes: TAuthScope[];
+	}> = {}
+) {
+	const auth = await useAuth(event);
+	if (!auth) throw createError({ statusCode: 401 });
+	if (options.hasScopes) {
+		await validateScope(event, options.hasScopes);
+	}
+	return auth.user;
+}
+
 async function provisionToken(
 	scope: TAuthScope[],
 	user: TUser,
 	type: 'access' | 'refresh'
-): Promise<{ dbId: null | string; value: string; }> {
+): Promise<{ dbId: null | string; value: string }> {
 	const token = jwt.sign(authSchema.parse({ scope, type, user }) satisfies TAuth, env.AUTH_SECRET, {
 		expiresIn:
 			type === 'refresh' ? REFRESH_TOKEN_EXPIRES_IN_SECONDS : ACCESS_TOKEN_EXPIRES_IN_SECONDS
@@ -75,7 +89,7 @@ async function useAuth(event: H3Event): Promise<null | TAuth> {
 
 async function validateScope(event: H3Event, scopes: TAuthScope[]): Promise<void> {
 	const auth = await useAuth(event);
-	if (!auth) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' });
+	if (!auth) throw createError({ statusCode: 401 });
 	if (auth.scope.includes('write:all') && auth.scope.includes('read:all')) {
 		return;
 	}
@@ -84,9 +98,9 @@ async function validateScope(event: H3Event, scopes: TAuthScope[]): Promise<void
 		const isAllowed =
 			auth.scope.includes(scope) || auth.scope.includes(isWriteScope ? 'write:all' : 'read:all');
 		if (!isAllowed) {
-			throw createError({ statusCode: 403, statusMessage: 'Forbidden' });
+			throw createError({ statusCode: 403 });
 		}
 	}
 }
 
-export { provisionToken, useAuth, validateScope };
+export { isAuthenticated, provisionToken, useAuth, validateScope };

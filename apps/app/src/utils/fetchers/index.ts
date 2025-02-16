@@ -33,7 +33,7 @@ function createFetcher(baseUrl: string, defaultInit: RequestInit): TFetcher {
 			forwardHeaders: () => {
 				const event = getRequestEvent();
 				const headers = event?.request.headers;
-        if (!headers) return fetcher
+				if (!headers) return fetcher;
 				return fetcher.setHeaders(headers);
 			},
 			setHeaders: (headers: HeadersInit) => {

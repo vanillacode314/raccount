@@ -12,7 +12,7 @@ serverEnv;
 
 export default defineConfig({
 	devOverlay: true,
-	middleware: './src/middleware.ts',
+	//middleware: './src/middleware.ts',
 	server: {
 		compatibilityDate: '2025-01-02',
 		prerender: {
@@ -20,9 +20,10 @@ export default defineConfig({
 		},
 		devProxy: {
 			'/api': 'http://localhost:3002/api'
-		}
+		},
+		static: true
 	},
-	ssr: true,
+	ssr: false,
 	vite: {
 		envPrefix: 'PUBLIC_',
 		plugins: [

@@ -6,12 +6,7 @@ const querySchema = z.object({
 });
 export default defineEventHandler(async (event) => {
 	const result = await getValidatedQuery(event, querySchema.safeParse);
-	if (!result.success) {
-		throw createError({
-			statusCode: 400,
-			statusMessage: 'Bad Request'
-		});
-	}
+	if (!result.success) throw createError({ statusCode: 400 });
 
 	const { clientId } = result.data;
 

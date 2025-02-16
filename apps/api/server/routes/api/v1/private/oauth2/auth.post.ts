@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { authScopeSchema } from 'schema';
 
+import { isAuthenticated } from '~/utils/auth';
+
 const querySchema = z.object({
 	client_id: z.string(),
 	redirect_uri: z.string().url().optional(),
@@ -10,9 +12,8 @@ const querySchema = z.object({
 	scope: z.string().transform((s) => authScopeSchema.array().min(1).parse(s.split(','))),
 	state: z.string()
 });
-
 export default defineEventHandler(async (event) => {
-	const user = event.context.auth!.user;
+	const user = await isAuthenticated(event, { hasScopes: ['read:all', 'write:all'] });
 	const result = await getValidatedQuery(event, querySchema.safeParse);
 	if (!result.success)
 		throw createError({

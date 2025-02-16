@@ -2,6 +2,8 @@ import { apps } from 'db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
+import { isAuthenticated } from '~/utils/auth';
+
 const bodySchema = z.object({
 	description: z.string(),
 	homepageUrl: z.string().url(),
@@ -13,7 +15,7 @@ const bodySchema = z.object({
 		.default([])
 });
 export default defineEventHandler(async (event) => {
-	const user = event.context.auth!.user;
+	const user = await isAuthenticated(event, { hasScopes: ['read:all', 'write:all'] });
 	const result = await readValidatedFormData(event, bodySchema.safeParse);
 	if (!result.success) {
 		throw createError({

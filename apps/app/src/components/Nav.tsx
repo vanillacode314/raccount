@@ -1,11 +1,8 @@
 import { useColorMode } from '@kobalte/core/color-mode';
 import { A } from '@solidjs/router';
-import { useQueryClient } from '@tanstack/solid-query';
 import { Show, Suspense } from 'solid-js';
 
 import { useUser } from '~/utils/auth';
-import { apiFetch } from '~/utils/fetchers';
-import { localforage } from '~/utils/localforage';
 import { cn } from '~/utils/tailwind';
 
 import { Button } from './ui/button';
@@ -34,18 +31,10 @@ export default function Nav(props: { class?: string }) {
 }
 
 function UserCard() {
-	const queryClient = useQueryClient();
 	const user = useUser();
 	return (
 		<Show when={user.data}>
-			<form
-				onClick={async (event) => {
-					event.preventDefault();
-					await apiFetch('/api/v1/public/auth/signout', { method: 'POST' });
-					await queryClient.invalidateQueries({ queryKey: ['user'] });
-					await localforage.removeMany(['privateKey', 'publicKey', 'salt']);
-				}}
-			>
+			<form action="/api/v1/public/auth/signout" method="post">
 				<Button class="flex items-center gap-2" type="submit" variant="outline">
 					<span>Sign Out</span>
 					<span class="i-heroicons:arrow-right-end-on-rectangle text-xl" />

@@ -2,7 +2,7 @@ import { ColorModeProvider, cookieStorageManagerSSR } from '@kobalte/core/color-
 import { createConnectivitySignal } from '@solid-primitives/connectivity';
 import { Title } from '@solidjs/meta';
 import { useBeforeLeave, useLocation, useNavigate } from '@solidjs/router';
-import { createEffect, createMemo, For, JSXElement, Suspense, untrack } from 'solid-js';
+import { createEffect, createMemo, For, JSXElement } from 'solid-js';
 import { isServer } from 'solid-js/web';
 import { toast } from 'solid-sonner';
 import { getCookie } from 'vinxi/http';
@@ -11,7 +11,6 @@ import Nav from '~/components/Nav';
 import { Toaster } from '~/components/ui/sonner';
 import { AppProvider, useApp } from '~/context/app';
 import { useUser } from '~/utils/auth';
-import { localforage } from '~/utils/localforage';
 
 function AuthGuard() {
 	const location = useLocation();
@@ -36,20 +35,6 @@ function AuthGuard() {
 			return;
 		}
 	});
-	return <></>;
-}
-
-function CleanUpUser() {
-	const user = useUser();
-	createEffect(() => {
-		untrack(() => {
-			if (!user.data) return;
-			if (user.data.encryptedPrivateKey === null) {
-				void localforage.removeMany(['privateKey', 'publicKey', 'salt']);
-			}
-		});
-	});
-
 	return <></>;
 }
 
@@ -85,9 +70,6 @@ const RootLayout = (props: { children: JSXElement }) => {
 					<AutoImportModals />
 				</AppProvider>
 			</ColorModeProvider>
-			<Suspense>
-				<CleanUpUser />
-			</Suspense>
 		</>
 	);
 };
