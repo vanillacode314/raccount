@@ -1,6 +1,6 @@
-import { A, useLocation, useSearchParams } from '@solidjs/router';
-import { createMemo, createSignal, Show } from 'solid-js';
-import { z } from 'zod';
+import { A, useLocation, useNavigate, useSearchParams } from '@solidjs/router';
+import { type } from 'arktype';
+import { createEffect, createMemo, createSignal, Show } from 'solid-js';
 
 import ValidationErrors from '~/components/form/ValidationErrors';
 import { Button } from '~/components/ui/button';
@@ -14,12 +14,13 @@ import {
 } from '~/components/ui/card';
 import { TextField, TextFieldInput, TextFieldLabel } from '~/components/ui/text-field';
 import { Toggle } from '~/components/ui/toggle';
-import { clientEnv } from '~/utils/env.client';
+import { useUser } from '~/queries/user';
+import { throwOnParseError } from '~/utils/arktype';
 
-const validationSchema = z.object({
-	email: z.string().array().default([]),
-	form: z.string().array().default([]),
-	password: z.string().array().default([])
+const validationSchema = type({
+	'email?': 'string[]',
+	'form?': 'string[]',
+	'password?': 'string[]'
 });
 export default function SignUpPage() {
 	const [passwordVisible, setPasswordVisible] = createSignal<boolean>(false);
@@ -28,25 +29,32 @@ export default function SignUpPage() {
 	const [searchParams, _] = useSearchParams();
 	const errors = createMemo(() => {
 		const errorString = new URLSearchParams(location.search).get('errors') as string;
-		if (!errorString) return validationSchema.parse({});
+		if (!errorString) return throwOnParseError(validationSchema({}));
 		try {
-			const result = validationSchema.safeParse(JSON.parse(errorString));
-			if (!result.success) {
-				return validationSchema.parse({
-					form: ['An error occured. Try again later if the issue persists.']
-				});
-			}
-			return result.data;
+			return throwOnParseError(validationSchema(JSON.parse(errorString)));
 		} catch {
-			return validationSchema.parse({
-				form: ['An error occured. Try again later if the issue persists.']
-			});
+			return throwOnParseError(
+				validationSchema({
+					form: ['An error occurred. Try again later if the issue persists.']
+				})
+			);
+		}
+	});
+
+	const navigate = useNavigate();
+	const [user] = useUser();
+	const redirectTo = () =>
+		location.search ? (new URLSearchParams(location.search).get('redirect') ?? '/') : '/';
+
+	createEffect(() => {
+		if (user.isSuccess && user.data !== null) {
+			navigate(redirectTo());
 		}
 	});
 
 	return (
 		<form
-			action={clientEnv.PUBLIC_API_URL + '/api/v1/public/auth/signup'}
+			action="/api/v1/public/auth/signup"
 			class="grid h-full place-content-center"
 			method="post"
 		>

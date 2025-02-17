@@ -1,166 +1,103 @@
-import {
-	createMutation,
-	createQuery,
-	UndefinedInitialDataOptions,
-	useQueryClient
-} from '@tanstack/solid-query';
+import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
+import { type } from 'arktype';
 import { TApp } from 'db/schema';
 import { create } from 'mutative';
-import { nanoid } from 'nanoid';
+import { createMemo } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { z } from 'zod';
 
-import { apiFetch, FetchError } from '~/utils/fetchers';
+import { throwOnParseError } from '~/utils/arktype';
+import { apiFetch } from '~/utils/fetchers';
 
+import { queries } from '.';
+
+const useAppInputSchema = type({
+	id: 'string'
+});
 function useApp(
-	id: TApp['id'],
-	options: Omit<ReturnType<UndefinedInitialDataOptions<TApp>>, 'queryFn' | 'queryKey'> = {}
+	input: () => typeof useAppInputSchema.inferIn,
+	options: { enabled?: boolean } = {}
 ) {
+	const parsedInput = createMemo(() => throwOnParseError(useAppInputSchema(input())));
 	const queryClient = useQueryClient();
 	const app = createQuery(() => ({
-		queryFn: () => apiFetch.forwardHeaders().as_json<TApp>(`/api/v1/private/apps/${id}`),
-		queryKey: ['apps', id],
+		...queries.apps.byId(parsedInput().id),
 		...options
 	}));
 
 	const deleteApp = createMutation(() => ({
-		mutationFn: () => apiFetch(`/api/v1/private/apps/${id}`, { method: 'DELETE' }),
-		onError: (error, __, context) => {
-			if (!context) return;
-			let message = 'Failed to delete app';
-			if (error instanceof FetchError) {
-				if (error.data.message.startsWith('custom:')) {
-					message = error.data.message.slice('custom:'.length);
-				}
-			}
-			toast.error(message, { id: context.toastId });
-		},
-		onSettled: (data, __, ___, context) => {
-			queryClient.invalidateQueries({ queryKey: ['apps'] });
-			if (!context) return;
-			if (!data) return;
-			toast.success(`Deleted App: ${data.name}`, { id: context.toastId });
-		}
+		mutationFn: () => apiFetch(`/api/v1/private/apps/${parsedInput().id}`, { method: 'DELETE' }),
+		onSuccess: () =>
+			queryClient.setQueryData<TApp[]>(
+				queries.apps.all.queryKey,
+				create((draft) => {
+					if (draft === undefined) return;
+					const index = draft.findIndex((app) => app.id === parsedInput().id);
+					if (index === -1) return;
+					draft.splice(index, 1);
+				})
+			)
 	}));
 
-	const updateDataSchema = z
-		.object({
-			name: z.string(),
-			redirectUris: z
-				.array(z.string().url())
-				.refine((uris) => new Set(uris).size === uris.length, { message: 'Uris must be unique' })
+	const updateDataSchema = type({
+		name: 'string',
+		redirectUris: type('string.url[]').narrow((uris, ctx) => {
+			if (new Set(uris).size === uris.length) return true;
+			return ctx.mustBe('unique');
 		})
-		.partial();
+	}).partial();
 	const updateApp = createMutation(() => ({
 		mutationFn: async (data: Partial<Pick<TApp, 'name' | 'redirectUris'>>) => {
-			const result = updateDataSchema.safeParse(data);
-			if (!result.success) {
-				const errors = Object.values(result.error.flatten().fieldErrors).flat();
-				toast.error(errors.join('\n'));
+			const parsedData = updateDataSchema(data);
+			if (parsedData instanceof type.errors) {
+				toast.error('Invalid input', { description: parsedData.summary });
 				throw new Error('Invalid input');
 			}
-			return apiFetch.setHeaders({ 'Content-Type': 'application/json' })(
-				`/api/v1/private/apps/${id}`,
-				{
-					body: JSON.stringify(result.data),
+			return apiFetch
+				.appendHeaders({ 'Content-Type': 'application/json' })
+				.as_json<TApp>(`/api/v1/private/apps/${parsedInput().id}`, {
+					body: JSON.stringify(parsedData),
 					method: 'PUT'
-				}
+				});
+		},
+		onSuccess: (data) => {
+			queryClient.setQueryData<TApp[]>(
+				queries.apps.all.queryKey,
+				create((draft) => {
+					if (draft === undefined) return;
+					const index = draft.findIndex((app) => app.id === parsedInput().id);
+					if (index === -1) return;
+					draft[index] = data;
+				})
 			);
-		},
-		onError: (error, __, context) => {
-			if (!context) return;
-			let message = 'Failed to update app';
-			if (error instanceof FetchError) {
-				if (error.data.message.startsWith('custom:')) {
-					message = error.data.message.slice('custom:'.length);
-				}
-			}
-			toast.error(message, { id: context.toastId });
-		},
-		onMutate: () => {
-			return {
-				toastId: toast.loading(`Updating App`)
-			};
-		},
-		onSettled: (data, __, ___, context) => {
-			queryClient.invalidateQueries({ queryKey: ['apps'] });
-			if (!context) return;
-			if (!data) return;
-			toast.success(`Updated App Successfully`, { id: context.toastId });
+			queryClient.setQueryData<TApp>(queries.apps.byId(parsedInput().id).queryKey, data);
 		}
 	}));
 	return [app, { deleteApp, updateApp }] as const;
 }
 
-function useApps(
-	options: Omit<ReturnType<UndefinedInitialDataOptions<TApp[]>>, 'queryFn' | 'queryKey'> = {}
-) {
+function useApps(options: { enabled?: boolean } = {}) {
 	const queryClient = useQueryClient();
 	const apps = createQuery(() => ({
-		queryFn: () => apiFetch.forwardHeaders().as_json<TApp[]>('/api/v1/private/apps'),
-		queryKey: ['apps'],
+		...queries.apps.all,
 		...options
 	}));
 	const createApp = createMutation(() => ({
-		mutationFn: ({
-			description,
-			homepageUrl,
-			name
-		}: {
-			description: string;
-			homepageUrl: string;
-			name: string;
-		}) => {
-			const formData = new FormData();
-			formData.set('name', name);
-			formData.set('homepageUrl', homepageUrl);
-			formData.set('description', description);
-			return apiFetch('/api/v1/private/apps', {
-				body: formData,
-				method: 'POST'
-			});
+		mutationFn: (data: { description: string; homepageUrl: string; name: string }) => {
+			return apiFetch
+				.appendHeaders({ 'Content-Type': 'application/json' })
+				.as_json<TApp>('/api/v1/private/apps', {
+					body: JSON.stringify(data),
+					method: 'POST'
+				});
 		},
-		onError: (error, __, context) => {
-			if (!context) return;
-			queryClient.setQueryData(['apps'], context.previousData);
-			let message = 'Failed to register app';
-			if (error instanceof FetchError) {
-				if (error.data.message.startsWith('custom:')) {
-					message = error.data.message.slice('custom:'.length);
-				}
-			}
-			toast.error(message, { id: context.toastId });
-		},
-		onMutate: async ({ description, homepageUrl, name }) => {
-			await queryClient.cancelQueries({ queryKey: ['apps'] });
-			const previousData = queryClient.getQueryData<TApp[]>(['apps']);
-			if (!previousData) return;
-			queryClient.setQueryData(
-				['apps'],
-				create(previousData, (draft) => {
-					draft.push({
-						clientId: '',
-						clientSecret: '',
-						createdAt: new Date(),
-						description,
-						homepageUrl,
-						id: nanoid(),
-						imageUrl: null,
-						name,
-						redirectUris: [],
-						updatedAt: new Date(),
-						userId: 'pending'
-					});
+		onSuccess: (data) => {
+			queryClient.setQueryData<TApp[]>(
+				queries.apps.all.queryKey,
+				create((draft) => {
+					if (draft === undefined) return;
+					draft.push(data);
 				})
 			);
-			const toastId = toast.loading(`Registering App: ${name}`);
-			return { previousData, toastId };
-		},
-		onSettled: (data, __, ___, context) => {
-			if (!context) return;
-			queryClient.invalidateQueries({ queryKey: ['apps'] });
-			if (!data) return;
-			toast.success(`Registered App: ${data.name}`, { id: context.toastId });
 		}
 	}));
 

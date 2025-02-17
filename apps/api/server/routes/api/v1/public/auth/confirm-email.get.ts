@@ -1,10 +1,10 @@
+import { type } from 'arktype';
 import { users, verificationTokens } from 'db/schema';
 import { eq } from 'drizzle-orm';
 
-const querySchema = z.object({ token: z.string() });
+const querySchema = type({ token: 'string > 0' });
 export default defineEventHandler(async (event) => {
-	const { token } = await getValidatedQuery(event, querySchema.parse);
-	if (!token) return sendRedirect(event, env.PUBLIC_APP_URL);
+	const { token } = await getValidatedQuery(event, (v) => throwOnParseError(querySchema(v)));
 
 	const [verificationToken] = await db
 		.select({ expiresAt: verificationTokens.expiresAt, userId: verificationTokens.userId })

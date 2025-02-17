@@ -1,7 +1,7 @@
 import { MetaProvider } from '@solidjs/meta';
-import { A, Router } from '@solidjs/router';
+import { A, Router, useLocation, useNavigate } from '@solidjs/router';
 import { FileRoutes } from '@solidjs/start/router';
-import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { SolidQueryDevtools } from '@tanstack/solid-query-devtools';
 import {
 	Component,
@@ -21,8 +21,6 @@ import { Button } from './components/ui/button';
 import { FetchError } from './utils/fetchers';
 import { listenForWaitingServiceWorker } from './utils/service-worker';
 import { cn } from './utils/tailwind';
-
-const queryClient = new QueryClient();
 
 const ErrorPage: Component<{ err: unknown; reset: () => void }> = (props) => {
 	const [updateAvailable, setUpdateAvailable] = createSignal<boolean>(false);
@@ -79,7 +77,7 @@ const ErrorPage: Component<{ err: unknown; reset: () => void }> = (props) => {
 				<Match when={true}>
 					<div class="grid h-full place-content-center place-items-center gap-4">
 						<span class="i-heroicons:exclamation-circle text-8xl" />
-						<p>An Error Occured</p>
+						<p>An Error Occurred</p>
 						<Show
 							fallback={
 								<Button onClick={() => window.location.reload()} size="lg">
@@ -102,16 +100,46 @@ const ErrorPage: Component<{ err: unknown; reset: () => void }> = (props) => {
 export default function App() {
 	return (
 		<Router
-			root={(props) => (
-				<ErrorBoundary fallback={(err, reset) => <ErrorPage err={err} reset={reset} />}>
-					<Suspense>
-						<QueryClientProvider client={queryClient}>
-							<MetaProvider>{props.children}</MetaProvider>
-							<SolidQueryDevtools buttonPosition="bottom-left" initialIsOpen={false} />
-						</QueryClientProvider>
-					</Suspense>
-				</ErrorBoundary>
-			)}
+			root={(props) => {
+				const navigate = useNavigate();
+				const location = useLocation();
+				const queryClient = new QueryClient({
+					defaultOptions: {
+						queries: {
+							retry: (count, error) => {
+								if (error instanceof FetchError) {
+									if (error.status === 401 || error.status === 403) {
+										return false;
+									}
+								}
+								return count < 3;
+							}
+						}
+					},
+					queryCache: new QueryCache({
+						onError(error) {
+							if (error instanceof FetchError) {
+								if (error.status === 401) {
+									if (location.pathname !== '/auth/signin')
+										navigate(
+											`/auth/signin?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`
+										);
+								}
+							}
+						}
+					})
+				});
+				return (
+					<ErrorBoundary fallback={(err, reset) => <ErrorPage err={err} reset={reset} />}>
+						<Suspense>
+							<QueryClientProvider client={queryClient}>
+								<MetaProvider>{props.children}</MetaProvider>
+								<SolidQueryDevtools buttonPosition="bottom-left" initialIsOpen={false} />
+							</QueryClientProvider>
+						</Suspense>
+					</ErrorBoundary>
+				);
+			}}
 			singleFlight={false}
 		>
 			<FileRoutes />

@@ -9,7 +9,6 @@ const resetPasswordSchema = z
 	.object({
 		confirmPassword: z.string(),
 		email: z.string({ required_error: 'Email is required' }).email(),
-		encryptedPrivateKey: z.string().optional(),
 		password: passwordSchema,
 		token: z.string({ required_error: 'Token is required' })
 	})
@@ -27,7 +26,7 @@ export default defineEventHandler(async (event) => {
 			statusMessage: 'Bad Request'
 		});
 	}
-	const { email, encryptedPrivateKey, password, token } = result.data;
+	const { email, password, token } = result.data;
 
 	const [$token] = await db
 		.select()
@@ -54,22 +53,13 @@ export default defineEventHandler(async (event) => {
 			statusMessage: 'Bad Request'
 		});
 
-	if (user.salt !== null) {
-		if (!encryptedPrivateKey)
-			throw createError({
-				message: `custom:${JSON.stringify({ form: ['Incorrect Seed Phrase'] })}`,
-				statusCode: 400,
-				statusMessage: 'Bad Request'
-			});
-	}
-
 	const passwordHash = await bcrypt.hash(password, 10);
 
-	await db.transaction(async (tx) => {
-		await tx.update(users).set({ encryptedPrivateKey, passwordHash }).where(eq(users.email, email));
-		await tx.delete(forgotPasswordTokens).where(eq(forgotPasswordTokens.userId, user.id));
-		await tx.delete(refreshTokens).where(eq(refreshTokens.userId, user.id));
-	});
+	await db.batch([
+		db.update(users).set({ passwordHash }).where(eq(users.email, email)),
+		db.delete(forgotPasswordTokens).where(eq(forgotPasswordTokens.userId, user.id)),
+		db.delete(refreshTokens).where(eq(refreshTokens.userId, user.id))
+	]);
 
 	return {
 		data: { location: env.PUBLIC_APP_URL + '/auth/signin' },

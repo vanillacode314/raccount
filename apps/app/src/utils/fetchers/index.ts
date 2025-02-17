@@ -1,7 +1,5 @@
 import { getRequestEvent } from 'solid-js/web';
 
-import { API_URL } from '~/consts';
-
 interface TFetcher {
 	(path: string, init?: RequestInit): Promise<Response>;
 	appendHeaders: (headers: Record<string, string>) => TFetcher;
@@ -10,10 +8,10 @@ interface TFetcher {
 	setHeaders: (headers: HeadersInit) => TFetcher;
 }
 
-function createFetcher(baseUrl: string, defaultInit: RequestInit): TFetcher {
+function createFetcher(baseUrl: string, defaultInit: RequestInit = {}): TFetcher {
 	const fetcher: TFetcher = Object.assign(
 		async (path: string, init: RequestInit = {}) => {
-			const response = await fetch(`${API_URL}${path}`, {
+			const response = await fetch(`${baseUrl}${path}`, {
 				...defaultInit,
 				...init
 			});
@@ -24,7 +22,7 @@ function createFetcher(baseUrl: string, defaultInit: RequestInit): TFetcher {
 			appendHeaders: (headers: Record<string, string>) => {
 				return createFetcher(baseUrl, {
 					...defaultInit,
-					headers: { ...defaultInit.headers, ...headers }
+					headers: { ...(defaultInit.headers ?? {}), ...headers }
 				});
 			},
 			as_json: async <T = unknown>(path: string, init: RequestInit = {}): Promise<T> => {
@@ -44,7 +42,7 @@ function createFetcher(baseUrl: string, defaultInit: RequestInit): TFetcher {
 	return fetcher;
 }
 
-const apiFetch = createFetcher(API_URL, { credentials: 'include' });
+const apiFetch = createFetcher('');
 
 class FetchError extends Error {
 	data: { message: string };
@@ -55,6 +53,10 @@ class FetchError extends Error {
 		this.name = 'FetchError';
 		this.status = response.status;
 		this.data = { message: text };
+	}
+
+	json() {
+		return JSON.parse(this.data.message);
 	}
 }
 

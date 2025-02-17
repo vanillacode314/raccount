@@ -1,12 +1,10 @@
 import { A, useNavigate, useSearchParams } from '@solidjs/router';
-import { FetchError } from 'ofetch';
+import { type } from 'arktype';
 import { createSignal, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { toast } from 'solid-sonner';
-import { z } from 'zod';
 
 import ValidationErrors from '~/components/form/ValidationErrors';
-import { useSeedPhraseVerifyModal } from '~/components/modals/auto-import/SeedPhraseVerifyModal';
 import { Button } from '~/components/ui/button';
 import {
 	Card,
@@ -18,22 +16,20 @@ import {
 } from '~/components/ui/card';
 import { TextField, TextFieldInput, TextFieldLabel } from '~/components/ui/text-field';
 import { Toggle } from '~/components/ui/toggle';
-import { deriveKey, encryptKey, getPasswordKey } from '~/utils/crypto';
-import { apiFetch } from '~/utils/fetchers';
+import { throwOnParseError } from '~/utils/arktype';
+import { apiFetch, FetchError } from '~/utils/fetchers';
 
-const validationSchema = z.object({
-	email: z.string().array().default([]),
-	form: z.string().array().default([]),
-	password: z.string().array().default([])
+const validationSchema = type({
+	email: type('string[] | undefined').pipe((v) => v ?? []),
+	form: type('string[] | undefined').pipe((v) => v ?? []),
+	password: type('string[] | undefined').pipe((v) => v ?? [])
 });
 export default function ResetPasswordPage() {
 	const [searchParams, _setSearchParams] = useSearchParams();
 	const token = () => searchParams.token;
 
-	const [errors, setErrors] = createStore(validationSchema.parse({}));
+	const [errors, setErrors] = createStore(throwOnParseError(validationSchema({})));
 	const [passwordVisible, setPasswordVisible] = createSignal<boolean>(false);
-	const seedPhraseVerifyModal = useSeedPhraseVerifyModal();
-	const [encryptedPrivateKey, setEncryptedPrivateKey] = createSignal<string>('');
 	const navigate = useNavigate();
 
 	return (
@@ -52,56 +48,22 @@ export default function ResetPasswordPage() {
 				class="grid h-full place-content-center"
 				onSubmit={async (event) => {
 					event.preventDefault();
-					const form = event.target as HTMLFormElement;
-					const formData = new FormData(form);
-					const token = String(formData.get('token'));
-					const password = String(formData.get('password'));
 					try {
-						const challenge = await apiFetch.as_json<{
-							decryptedString: string;
-							encryptedString: string;
-							salt: number[];
-						}>(`/api/v1/public/auth/get-encryption-challenge?token=${encodeURIComponent(token)}`);
-						if (challenge !== null) {
-							const { decryptedString, encryptedString, salt } = challenge;
-							const $salt = new Uint8Array(salt);
-							await new Promise<void>((resolve) => {
-								seedPhraseVerifyModal.open({
-									decryptedString,
-									encryptedString,
-									onDismiss() {
-										setEncryptedPrivateKey('');
-										resolve();
-									},
-									async onVerified(seedPhrase) {
-										const derivationKey = await getPasswordKey(seedPhrase);
-										const privateKey = await deriveKey(derivationKey, $salt, ['decrypt']);
-										const derivationKey2 = await getPasswordKey(password);
-										const publicKey2 = await deriveKey(derivationKey2, $salt, ['encrypt']);
-										const encryptedPrivateKey = await encryptKey(privateKey, publicKey2);
-										setEncryptedPrivateKey(encryptedPrivateKey);
-										resolve();
-									},
-									salt: $salt
-								});
-							});
-						}
-						{
-							const formData = new FormData(form);
-							const { data } = await apiFetch.as_json<{ data: { location: string } }>(
-								'/api/v1/public/auth/reset-password',
-								{
-									body: formData,
-									method: 'POST'
-								}
-							);
-							window.location.href = data.location;
-						}
+						const form = event.target as HTMLFormElement;
+						const formData = new FormData(form);
+						const { data } = await apiFetch.as_json<{ data: { location: string } }>(
+							'/api/v1/public/auth/reset-password',
+							{
+								body: formData,
+								method: 'POST'
+							}
+						);
+						window.location.href = data.location;
 					} catch (error) {
-						setErrors(validationSchema.parse({}));
+						setErrors(throwOnParseError(validationSchema({})));
 						if (error instanceof FetchError) {
 							if (error.status !== 400) {
-								setErrors('form', ['An Error occured. Try again later if the issue persists.']);
+								setErrors('form', ['An Error occurred. Try again later if the issue persists.']);
 								return;
 							}
 							const data =
@@ -130,7 +92,7 @@ export default function ResetPasswordPage() {
 							setErrors(data);
 							return;
 						}
-						setErrors('form', ['An Error occured. Try again later if the issue persists.']);
+						setErrors('form', ['An Error occurred. Try again later if the issue persists.']);
 					}
 				}}
 			>
@@ -141,7 +103,6 @@ export default function ResetPasswordPage() {
 					</CardHeader>
 					<CardContent class="grid gap-4">
 						<input name="token" type="hidden" value={token()} />
-						<input name="encryptedPrivateKey" type="hidden" value={encryptedPrivateKey()} />
 						<ValidationErrors errors={errors.form} />
 						<TextField>
 							<TextFieldLabel for="email">Email</TextFieldLabel>

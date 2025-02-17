@@ -9,5 +9,5 @@ export default defineEventHandler(async (event) => {
 	}
 	deleteCookie(event, 'refreshToken');
 
-	return { status: 200, statusMessage: 'Success' };
+	return sendRedirect(event, '/');
 });

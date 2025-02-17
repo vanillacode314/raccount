@@ -1,46 +1,38 @@
+import { type } from 'arktype';
 import { apps } from 'db/schema';
 import { and, eq } from 'drizzle-orm';
 
 import { isAuthenticated } from '~/utils/auth';
 
-const bodySchema = z.object({
-	description: z.string().optional(),
-	homepageUrl: z.string().url().optional(),
-	imageUrl: z.string().optional(),
-	name: z.string().optional(),
-	redirectUris: z
-		.array(z.string().url())
-		.refine((uris) => new Set(uris).size === uris.length, { message: 'Uris must be unique' })
-		.optional()
+const bodySchema = type({
+	'description?': 'string',
+	'homepageUrl?': 'string.url',
+	'imageUrl?': 'string.url',
+	'name?': 'string',
+	'redirectUris?': type('string.url[]').narrow((uris, ctx) => {
+		if (new Set(uris).size === uris.length) {
+			return true;
+		}
+		return ctx.mustBe('unique');
+	})
 });
-const paramsSchema = z.object({
-	id: z.string()
+const paramsSchema = type({
+	id: 'string > 0'
 });
 export default defineEventHandler(async (event) => {
 	const user = await isAuthenticated(event, { hasScopes: ['read:all', 'write:all'] });
-	const result = await readValidatedBody(event, bodySchema.safeParse);
-	if (!result.success) {
-		throw createError({
-			statusCode: 400,
-			statusMessage: 'Bad Request'
-		});
-	}
+	const body = await readValidatedBody(event, bodySchema);
+	if (body instanceof type.errors) throw createError({ message: body.summary, statusCode: 400 });
 
-	const { id } = await getValidatedRouterParams(event, paramsSchema.parse);
-	const data = result.data;
+	const { id } = await getValidatedRouterParams(event, (v) => throwOnParseError(paramsSchema(v)));
 
 	const [record] = await db
 		.update(apps)
-		.set(data)
+		.set(body)
 		.where(and(eq(apps.id, id), eq(apps.userId, user.id)))
 		.returning();
 
-	if (!record) {
-		throw createError({
-			statusCode: 404,
-			statusMessage: 'Not Found'
-		});
-	}
+	if (!record) throw createError({ statusCode: 404 });
 
 	return record;
 });

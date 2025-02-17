@@ -6,112 +6,112 @@ import { nanoid } from 'nanoid';
 import { ms } from '~/utils/ms';
 
 const createdAt = () =>
-	integer('createdAt', { mode: 'timestamp' })
+	integer({ mode: 'timestamp' })
 		.notNull()
-		.default(sql`(unixepoch('now'))`);
+		.default(sql`(CURRENT_TIMESTAMP)`);
 const updatedAt = () =>
-	integer('updatedAt', { mode: 'timestamp' })
+	integer({ mode: 'timestamp' })
 		.notNull()
-		.default(sql`(unixepoch('now'))`)
+		.default(sql`(CURRENT_TIMESTAMP)`)
 		.$onUpdateFn(() => new Date());
 
 const refreshTokens = sqliteTable('refreshTokens', {
-	expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
-	id: text('id')
+	expiresAt: integer({ mode: 'timestamp' }).notNull(),
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	token: text('token').notNull(),
-	userId: text('userId')
+	token: text().notNull(),
+	userId: text()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' })
 });
 
 const verificationTokens = sqliteTable('verificationTokens', {
-	expiresAt: integer('expiresAt', { mode: 'timestamp' })
+	expiresAt: integer({ mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date(Date.now() + ms('10 min'))),
-	id: text('id')
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	token: text('token').notNull(),
-	userId: text('userId')
+	token: text().notNull(),
+	userId: text()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' })
 });
 
 const forgotPasswordTokens = sqliteTable('forgotPasswordTokens', {
-	expiresAt: integer('expiresAt', { mode: 'timestamp' })
+	expiresAt: integer({ mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date(Date.now() + ms('10 min'))),
-	id: text('id')
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	token: text('token').notNull(),
-	userId: text('userId')
+	token: text().notNull(),
+	userId: text()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' })
 });
 
 const users = sqliteTable('users', {
 	createdAt: createdAt(),
-	email: text('email').notNull().unique(),
-	emailVerified: integer('emailVerified', { mode: 'boolean' }).default(false),
-	encryptedPrivateKey: text('encryptedPrivateKey'),
-	id: text('id')
+	email: text().notNull().unique(),
+	emailVerified: integer({ mode: 'boolean' }).default(false),
+	encryptedPrivateKey: text(),
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	passwordHash: text('passwordHash').notNull(),
-	publicKey: text('publicKey'),
-	salt: text('salt'),
+	passwordHash: text().notNull(),
+	publicKey: text(),
+	salt: text(),
 	updatedAt: updatedAt()
 });
 
 const authorizedApps = sqliteTable('authorizedApps', {
-	appId: text('appId')
+	appId: text()
 		.notNull()
 		.references(() => apps.id, { onDelete: 'cascade' }),
 	createdAt: createdAt(),
-	id: text('id')
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	refreshTokenId: text('refreshTokenId')
+	refreshTokenId: text()
 		.notNull()
 		.references(() => refreshTokens.id, { onDelete: 'cascade' }),
-	scope: text('scope', { mode: 'json' })
-		.$type<string[]>()
+	scope: text({ mode: 'json' })
 		.notNull()
-		.default(sql`[]`),
+		.default(sql`'[]'`)
+		.$type<string[]>(),
 	updatedAt: updatedAt(),
-	userId: text('userId')
+	userId: text()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' })
 });
 
 const apps = sqliteTable('apps', {
-	clientId: text('clientId').notNull().unique(),
-	clientSecret: text('clientSecret').notNull().unique(),
+	clientId: text().notNull().unique(),
+	clientSecret: text().notNull().unique(),
 	createdAt: createdAt(),
-	description: text('description').notNull(),
-	homepageUrl: text('homepageUrl').notNull(),
-	id: text('id')
+	description: text().notNull(),
+	homepageUrl: text().notNull(),
+	id: text()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	imageUrl: text('imageUrl'),
-	name: text('name').notNull().unique(),
-	redirectUris: text('redirectUris', { mode: 'json' })
-		.$type<string[]>()
+	imageUrl: text(),
+	name: text().notNull().unique(),
+	redirectUris: text({ mode: 'json' })
 		.notNull()
-		.default(sql`[]`),
+		.default(sql`'[]'`)
+		.$type<string[]>(),
 	updatedAt: updatedAt(),
-	userId: text('userId')
+	userId: text()
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' })
 });
 
 const authorizationCodes = sqliteTable('authorizationCodes', {
-	code: text('code').primaryKey(),
+	code: text().primaryKey(),
 	createdAt: createdAt(),
-	expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
+	expiresAt: integer({ mode: 'timestamp' }).notNull(),
 	updatedAt: updatedAt()
 });
 

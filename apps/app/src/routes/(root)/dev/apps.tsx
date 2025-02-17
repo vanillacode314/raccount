@@ -12,6 +12,7 @@ import {
 	CardTitle
 } from '~/components/ui/card';
 import { useApp, useApps } from '~/queries/apps';
+import { FetchError } from '~/utils/fetchers';
 import { cn } from '~/utils/tailwind';
 
 export default function DevAppsPage() {
@@ -59,7 +60,7 @@ export default function DevAppsPage() {
 }
 
 function AppCard(props: { app: TApp }): JSXElement {
-	const [_, { deleteApp, updateApp }] = useApp(props.app.id, { enabled: false });
+	const [_, { deleteApp, updateApp }] = useApp(() => ({ id: props.app.id }), { enabled: false });
 
 	return (
 		<article class="contents">
@@ -178,7 +179,13 @@ function AppCard(props: { app: TApp }): JSXElement {
 					</Button>
 					<Button
 						class="flex items-center gap-2"
-						onClick={() => deleteApp.mutate()}
+						onClick={() =>
+							toast.promise(() => deleteApp.mutateAsync(), {
+								error: 'Failed to delete app',
+								loading: 'Deleting app',
+								success: 'Deleted app'
+							})
+						}
 						variant="destructive"
 					>
 						<span>Delete</span>
@@ -202,7 +209,27 @@ function Toolbar() {
 					const homepageUrl = prompt('Homepage URL?');
 					const description = prompt('Description?');
 					if (!name || !homepageUrl || !description) return;
-					createApp.mutate({ description, homepageUrl, name });
+
+					toast.promise(() => createApp.mutateAsync({ description, homepageUrl, name }), {
+						error: (error: unknown) => {
+							let message: string | undefined = undefined;
+							if (error instanceof FetchError) {
+								switch (error.status) {
+									case 400:
+										message = error.json().message;
+										break;
+									case 409:
+										message = 'App already registered by either you or another user';
+										break;
+									default:
+										break;
+								}
+							}
+							return message ?? 'Failed to register app';
+						},
+						loading: 'Registering app',
+						success: 'Registered app'
+					});
 				}}
 			>
 				<span class={cn('i-heroicons:plus', 'text-lg')} />

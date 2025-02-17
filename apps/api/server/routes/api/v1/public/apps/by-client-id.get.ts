@@ -1,14 +1,10 @@
+import { type } from 'arktype';
 import { apps } from 'db/schema';
 import { eq } from 'drizzle-orm';
 
-const querySchema = z.object({
-	clientId: z.string()
-});
+const querySchema = type({ clientId: 'string > 0' });
 export default defineEventHandler(async (event) => {
-	const result = await getValidatedQuery(event, querySchema.safeParse);
-	if (!result.success) throw createError({ statusCode: 400 });
-
-	const { clientId } = result.data;
+	const query = await getValidatedQuery(event, (v) => throwOnParseError(querySchema(v)));
 
 	const [record] = await db
 		.select({
@@ -18,13 +14,9 @@ export default defineEventHandler(async (event) => {
 			name: apps.name
 		})
 		.from(apps)
-		.where(eq(apps.clientId, clientId));
+		.where(eq(apps.clientId, query.clientId));
 
-	if (!record) {
-		throw createError({
-			statusCode: 404,
-			statusMessage: 'Not Found'
-		});
-	}
+	if (!record) throw createError({ statusCode: 404 });
+
 	return record;
 });

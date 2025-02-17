@@ -1,30 +1,34 @@
+import { type } from 'arktype';
 import bcrypt from 'bcryptjs';
-import { refreshTokens, users } from 'db/schema';
+import { users } from 'db/schema';
 import { eq } from 'drizzle-orm';
 import { authSchema, TAuthScope } from 'schema';
 
-import { REFRESH_TOKEN_EXPIRES_IN_SECONDS, TOKEN_JWT_OPTIONS } from '~/consts';
+import { TOKEN_JWT_OPTIONS } from '~/consts';
+import { throwOnParseError } from '~/utils/arktype';
 import { provisionToken } from '~/utils/auth';
 
-const signInSchema = z.object({
-	email: z.string().email(),
-	password: z.string()
+const signInSchema = type({
+	email: 'string.email',
+	password: 'string'
 });
 export default defineEventHandler(async (event) => {
-	const { email, password } = await readValidatedFormData(event, signInSchema.parse);
+	const { email, password } = await readValidatedFormData(event, (v) =>
+		throwOnParseError(signInSchema(v))
+	);
 
 	const [user] = await db.select().from(users).where(eq(users.email, email));
 
 	if (!user)
 		throw createError({
-			message: `custom:${JSON.stringify({ form: ['Email not registered'] })}`,
+			message: `Email not registered`,
 			statusCode: 404,
 			statusMessage: 'Not Found'
 		});
 
 	if (!(await bcrypt.compare(password, user.passwordHash)))
 		throw createError({
-			message: `custom:${JSON.stringify({ form: ['Invalid Credentials'] })}`,
+			message: 'Invalid Credentials',
 			statusCode: 401,
 			statusMessage: 'Unauthorized'
 		});

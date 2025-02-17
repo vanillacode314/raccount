@@ -1,14 +1,13 @@
+import { type } from 'arktype';
 import { forgotPasswordTokens, users } from 'db/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid/non-secure';
 
 import { encryptDataWithKey, importKey } from '~/utils/crypto';
 
-const querySchema = z.object({
-	token: z.string()
-});
+const querySchema = type({ token: 'string > 0' });
 export default defineEventHandler(async (event) => {
-	const { token } = await getValidatedQuery(event, querySchema.parse);
+	const { token } = await getValidatedQuery(event, (v) => throwOnParseError(querySchema(v)));
 	const [$token] = await db
 		.select()
 		.from(forgotPasswordTokens)

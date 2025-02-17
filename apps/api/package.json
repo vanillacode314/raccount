@@ -24,9 +24,10 @@
   "dependencies": {
     "@libsql/client": "^0.14.0",
     "@t3-oss/env-core": "^0.11.1",
+    "arktype": "^2.0.4",
     "bcryptjs": "^2.4.3",
     "db": "workspace:*",
-    "drizzle-orm": "^0.38.2",
+    "drizzle-orm": "^0.39.3",
     "h3": "^1.13.0",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.0.9",

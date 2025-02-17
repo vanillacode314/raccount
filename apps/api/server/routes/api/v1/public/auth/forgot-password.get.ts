@@ -1,17 +1,13 @@
+import { type } from 'arktype';
 import { forgotPasswordTokens, users } from 'db/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
-const querySchema = z.object({
-	email: z.string().email()
-});
+const querySchema = type({ email: 'string.email' });
 export default defineEventHandler(async (event) => {
-	const result = await getValidatedQuery(event, querySchema.safeParse);
-	if (!result.success) return sendRedirect(event, env.PUBLIC_APP_URL);
+	const query = await getValidatedQuery(event, (v) => throwOnParseError(querySchema(v)));
 
-	const { email } = result.data;
-
-	const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+	const [user] = await db.select().from(users).where(eq(users.email, query.email)).limit(1);
 	if (!user) return sendRedirect(event, env.PUBLIC_APP_URL);
 
 	const [{ token }] = await db

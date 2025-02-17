@@ -1,11 +1,9 @@
-import { A, useLocation } from '@solidjs/router';
-import { useQueryClient } from '@tanstack/solid-query';
+import { A, useLocation, useNavigate } from '@solidjs/router';
+import { type } from 'arktype';
 import { TUser } from 'db/schema';
-import { FetchError } from 'ofetch';
-import { createSignal, Show } from 'solid-js';
+import { createEffect, createSignal, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { toast } from 'solid-sonner';
-import { z } from 'zod';
 
 import ValidationErrors from '~/components/form/ValidationErrors';
 import { Button } from '~/components/ui/button';
@@ -19,18 +17,30 @@ import {
 } from '~/components/ui/card';
 import { TextField, TextFieldInput, TextFieldLabel } from '~/components/ui/text-field';
 import { Toggle } from '~/components/ui/toggle';
+import { useUser } from '~/queries/user';
+import { throwOnParseError } from '~/utils/arktype';
 import { clientEnv } from '~/utils/env.client';
-import { apiFetch } from '~/utils/fetchers';
+import { apiFetch, FetchError } from '~/utils/fetchers';
 
-const validationSchema = z.object({
-	form: z.string().array()
+const validationSchema = type({
+	'form?': 'string[]'
 });
 export default function SignInPage() {
-	const queryClient = useQueryClient();
 	const location = useLocation();
 	const [passwordVisible, setPasswordVisible] = createSignal<boolean>(false);
 	const [email, setEmail] = createSignal('');
-	const [formErrors, setFormErrors] = createStore<string[]>([]);
+	const [formErrors, setFormErrors] = createStore(throwOnParseError(validationSchema({})));
+	const navigate = useNavigate();
+	const [user] = useUser();
+	const redirectTo = () =>
+		location.search ? (new URLSearchParams(location.search).get('redirect') ?? '/') : '/';
+
+	createEffect(() => {
+		if (user.isSuccess && user.data !== null) {
+			navigate(redirectTo());
+		}
+	});
+
 	return (
 		<form
 			class="grid h-full place-content-center"
@@ -44,22 +54,16 @@ export default function SignInPage() {
 						body: formData,
 						method: 'POST'
 					});
-					queryClient.invalidateQueries({ queryKey: ['user'] });
+					user.refetch();
+					navigate(redirectTo());
 				} catch (error) {
+					let message: string | undefined = undefined;
 					if (error instanceof FetchError) {
-						if (!error.data.message.startsWith('custom:')) {
-							setFormErrors(error.data.message);
-							return;
-						}
-						const result = validationSchema.safeParse(
-							JSON.parse(error.data.message.slice('custom:'.length))
-						);
-						if (!result.success) {
-							setFormErrors('An error occured. Try again later if the issue persists.');
-							return;
-						}
-						setFormErrors(result.data.form);
+						message = error.json().message ?? undefined;
 					}
+					setFormErrors({
+						form: [message ?? 'An error occurred. Try again later if the issue persists.']
+					});
 				}
 			}}
 		>
@@ -69,7 +73,7 @@ export default function SignInPage() {
 					<CardDescription>Enter your details below to login to your account.</CardDescription>
 				</CardHeader>
 				<CardContent class="grid gap-4">
-					<ValidationErrors errors={formErrors} />
+					<ValidationErrors errors={formErrors.form} />
 					<TextField>
 						<TextFieldLabel for="email">Email</TextFieldLabel>
 						<TextFieldInput
@@ -90,7 +94,7 @@ export default function SignInPage() {
 							<Button
 								onClick={() => {
 									try {
-										const $email = z.string().email().parse(email());
+										const $email = throwOnParseError(type('string.email')(email()));
 										const url = new URL(clientEnv.PUBLIC_API_URL);
 										url.pathname = '/api/v1/public/auth/forgot-password';
 										url.searchParams.set('email', $email);

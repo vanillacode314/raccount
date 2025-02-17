@@ -1,6 +1,4 @@
-import { createMutation, createQuery, useQueryClient } from '@tanstack/solid-query';
 import { TApp, TAuthorizedApp } from 'db/schema';
-import { FetchError } from 'ofetch';
 import { For, JSXElement, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 
@@ -14,20 +12,10 @@ import {
 	CardTitle
 } from '~/components/ui/card';
 import { SCOPE_DEFINITIONS } from '~/consts';
-import { apiFetch } from '~/utils/fetchers';
+import { useAuthorizedApp, useAuthorizedApps } from '~/queries/authorized-apps';
 
 export default function AppsPage() {
-	const authorizedAppsQuery = createQuery(() => ({
-		queryFn: () =>
-			apiFetch
-				.forwardHeaders()
-				.as_json<
-					(Pick<TAuthorizedApp, 'scope'> & TApp & { appIds: string[] })[]
-				>('/api/v1/private/authorized-apps'),
-		queryKey: ['authorizedApps']
-	}));
-
-	const authorizedApps = () => authorizedAppsQuery.data;
+	const [authorizedApps] = useAuthorizedApps();
 
 	return (
 		<div class="flex h-full flex-col gap-4 overflow-hidden py-4">
@@ -38,10 +26,10 @@ export default function AppsPage() {
 						<span>No Authorized Apps</span>
 					</div>
 				}
-				when={authorizedApps() && authorizedApps()!.length > 0}
+				when={authorizedApps.isSuccess && authorizedApps.data!.length > 0}
 			>
 				<ul class="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4">
-					<For each={authorizedApps()}>
+					<For each={authorizedApps.data}>
 						{(authorizedApp) => (
 							<li class="contents">
 								<AuthorizedAppCard authorizedApp={authorizedApp} />
@@ -57,41 +45,9 @@ export default function AppsPage() {
 function AuthorizedAppCard(props: {
 	authorizedApp: Pick<TAuthorizedApp, 'scope'> & TApp & { appIds: string[] };
 }): JSXElement {
-	const queryClient = useQueryClient();
-	const revokeAppAccess = createMutation(() => ({
-		mutationFn: (ids: string | string[]) => {
-			ids = Array.isArray(ids) ? ids : [ids];
-			const formData = new FormData();
-			for (const id of ids) {
-				formData.append('id', id);
-			}
-			return apiFetch('/api/v1/private/authorized-apps', {
-				body: formData,
-				method: 'DELETE'
-			});
-		},
-		onError: (error, __, context) => {
-			if (!context) return;
-			let message = 'Failed to revoke app access';
-			if (error instanceof FetchError) {
-				if (error.data.message.startsWith('custom:')) {
-					message = error.data.message.slice('custom:'.length);
-				}
-			}
-			toast.error(message, { id: context.toastId });
-		},
-		onMutate: (id) => {
-			return {
-				toastId: toast.loading(`Revoking access for App with id: ${id}`)
-			};
-		},
-		onSettled: (data, __, id, context) => {
-			queryClient.invalidateQueries({ queryKey: ['authorizedApps'] });
-			if (!context) return;
-			if (!data) return;
-			toast.success(`Revoked App Access Successfully`, { id: context.toastId });
-		}
-	}));
+	const [, { deleteAuthorizedApp }] = useAuthorizedApp(() => ({ id: props.authorizedApp.id }), {
+		enabled: false
+	});
 
 	return (
 		<article class="contents">
@@ -116,7 +72,13 @@ function AuthorizedAppCard(props: {
 				</CardContent>
 				<CardFooter class="flex justify-end">
 					<Button
-						onClick={() => revokeAppAccess.mutate(props.authorizedApp.id)}
+						onClick={() => {
+							toast.promise(() => deleteAuthorizedApp.mutateAsync(), {
+								error: 'Failed to revoke access',
+								loading: 'Revoking access...',
+								success: 'Access revoked successfully'
+							});
+						}}
 						type="button"
 						variant="destructive"
 					>
