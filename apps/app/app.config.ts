@@ -1,6 +1,7 @@
 import { defineConfig } from '@solidjs/start/config';
 import { presetIcons, presetWebFonts } from 'unocss';
 import Unocss from 'unocss/vite';
+import { compression } from 'vite-plugin-compression2';
 
 import { clientEnv } from './src/utils/env.client';
 import { serverEnv } from './src/utils/env.server';
@@ -51,7 +52,8 @@ export default defineConfig({
 						}
 					})
 				]
-			})
+			}),
+			compression()
 			//analyzer({ analyzerPort: 8889 })
 		]
 	}
