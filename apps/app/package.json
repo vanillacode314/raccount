@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "PORT=3001 vinxi dev",
     "build": "npm run test:once && npm run build:nocheck",
-    "build:nocheck": "npm run build:solid",
+    "build:nocheck": "npm run build:solid && npm run build:sw",
     "build:solid": "TURSO_BUILDING=1 vinxi build",
     "build:sw": "node ./workbox.js",
     "test": "vitest",
@@ -75,6 +75,7 @@
     "typescript-eslint": "^8.19.1",
     "unocss": "^0.65.4",
     "vite-plugin-compression2": "^1.3.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "workbox-build": "^7.3.0"
   }
 }
