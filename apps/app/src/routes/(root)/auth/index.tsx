@@ -65,7 +65,7 @@ export default function AuthConsentPage() {
 					<p>{appQuery.data?.name} wants to access your account</p>
 				</CardContent>
 				<CardFooter class="grid grid-cols-2 gap-4">
-					<Button type="button">Deny</Button>
+					<Button type="button" onClick={() => history.back()}>Deny</Button>
 					<Button type="submit" variant="secondary">
 						Allow
 					</Button>
