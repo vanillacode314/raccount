@@ -1,6 +1,4 @@
 import { useSearchParams } from '@solidjs/router';
-import { createQuery } from '@tanstack/solid-query';
-import { TApp } from 'db/schema';
 
 import { Button } from '~/components/ui/button';
 import {
@@ -11,8 +9,8 @@ import {
 	CardHeader,
 	CardTitle
 } from '~/components/ui/card';
+import { useAppByClientId } from '~/queries/apps';
 import { clientEnv } from '~/utils/env.client';
-import { apiFetch } from '~/utils/fetchers';
 
 export default function AuthConsentPage() {
 	const [searchParams, _setSearchParams] = useSearchParams();
@@ -31,16 +29,7 @@ export default function AuthConsentPage() {
 		return url;
 	};
 
-	const appQuery = createQuery(() => ({
-		queryFn: async () => {
-			const searchParams = new URLSearchParams();
-			searchParams.set('clientId', clientId());
-			return apiFetch.as_json<Pick<TApp, 'description' | 'homepageUrl' | 'name'>>(
-				'/api/v1/public/apps/by-client-id?' + searchParams.toString()
-			);
-		},
-		queryKey: ['app', 'clientId', clientId()]
-	}));
+	const [app] = useAppByClientId(() => ({ clientId: clientId() }));
 
 	return (
 		<form
@@ -50,22 +39,24 @@ export default function AuthConsentPage() {
 		>
 			<Card>
 				<CardHeader>
-					<CardTitle>{appQuery.data?.name}</CardTitle>
+					<CardTitle>{app.data?.name}</CardTitle>
 					<a
 						class="pb-2 text-sm text-neutral-500 hover:underline focus:underline"
-						href={appQuery.data?.homepageUrl}
+						href={app.data?.homepageUrl}
 					>
-						{appQuery.data?.homepageUrl}
+						{app.data?.homepageUrl}
 					</a>
 					<CardDescription class="flex flex-col">
-						<span>{appQuery.data?.description}</span>
+						<span>{app.data?.description}</span>
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<p>{appQuery.data?.name} wants to access your account</p>
+					<p>{app.data?.name} wants to access your account</p>
 				</CardContent>
 				<CardFooter class="grid grid-cols-2 gap-4">
-					<Button type="button" onClick={() => history.back()}>Deny</Button>
+					<Button onClick={() => history.back()} type="button">
+						Deny
+					</Button>
 					<Button type="submit" variant="secondary">
 						Allow
 					</Button>

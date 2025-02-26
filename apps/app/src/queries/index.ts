@@ -20,6 +20,16 @@ const apps = createQueryKeys('apps', {
 		queryFn: () => apiFetch.forwardHeaders().as_json<TApp[]>('/api/v1/private/apps'),
 		queryKey: null
 	},
+	byClientId: (clientId: TApp['clientId']) => ({
+		queryFn: async () => {
+			const searchParams = new URLSearchParams();
+			searchParams.set('clientId', clientId);
+			return apiFetch.as_json<Pick<TApp, 'description' | 'homepageUrl' | 'name'>>(
+				'/api/v1/public/apps/by-client-id?' + searchParams.toString()
+			);
+		},
+		queryKey: [clientId]
+	}),
 	byId: (id: TApp['id']) => ({
 		queryFn: () => apiFetch.forwardHeaders().as_json<TApp>(`/api/v1/private/apps/${id}`),
 		queryKey: [id]

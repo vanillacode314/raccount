@@ -10,8 +10,22 @@ import { apiFetch } from '~/utils/fetchers';
 
 import { queries } from '.';
 
+const useAppByClientIdInputSchema = type({
+	clientId: 'string > 0',
+	enabled: 'boolean = true'
+});
+
+function useAppByClientId(input: () => typeof useAppByClientIdInputSchema.inferIn) {
+	const parsedInput = createMemo(() => throwOnParseError(useAppByClientIdInputSchema(input())));
+	const app = createQuery(() => ({
+		...queries.apps.byClientId(parsedInput().clientId),
+		enabled: parsedInput().enabled
+	}));
+	return [app];
+}
+
 const useAppInputSchema = type({
-	id: 'string'
+	id: 'string > 0'
 });
 function useApp(
 	input: () => typeof useAppInputSchema.inferIn,
@@ -104,4 +118,4 @@ function useApps(options: { enabled?: boolean } = {}) {
 	return [apps, { createApp }] as const;
 }
 
-export { useApp, useApps };
+export { useApp, useAppByClientId, useApps };
