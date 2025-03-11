@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
 	}
 
 	switch (response_type) {
-		case 'code':
+		case 'code': {
 			if (!env.AUTH_SECRET) {
 				throw createError({
 					message: 'AUTH_SECRET is not set',
@@ -68,5 +68,6 @@ export default defineEventHandler(async (event) => {
 			url.searchParams.set('code', code);
 			url.searchParams.set('state', state);
 			return sendRedirect(event, url.toString());
+		}
 	}
 });

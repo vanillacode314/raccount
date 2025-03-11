@@ -1,15 +1,10 @@
 import bcrypt from 'bcryptjs';
-import { refreshTokens, users, verificationTokens } from 'db/schema';
+import { users, verificationTokens } from 'db/schema';
 import { eq } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import { TAuthScope } from 'schema';
 
-import {
-	ACCESS_TOKEN_EXPIRES_IN_SECONDS,
-	REFRESH_TOKEN_EXPIRES_IN_SECONDS,
-	TOKEN_JWT_OPTIONS
-} from '~/consts';
+import { TOKEN_JWT_OPTIONS } from '~/consts';
 import { passwordSchema } from '~/consts/zod';
 import { provisionToken } from '~/utils/auth';
 import { resend } from '~/utils/resend';
